@@ -1,31 +1,40 @@
+!process.argv[2] && console.log('no source site address');
+!process.argv[3] && console.log('no target file name');
+
 var http = require('http'),
+    csv = require('csv'),
     fs = require('fs'),
-    csv = require('csv');
+    rstream = fs.createReadStream(process.argv[3]),
+    wstream = fs.createWriteStream('result.csv');
 
-/*
-http.get('http://xn--80apfumee9a0bg.xn--80asehdb/index.php', function(res) {
-    console.log(res);
-}).on('error', function(e) {
-  console.log("Got error: " + e.message);
-})
-*/
+http.get(process.argv[2], function(res) {
+    var body = '';
 
-if (process.argv[2]) {
-    fs.readFile(process.argv[2], { encoding: 'utf8' }, function(err, data) {
-        var regexp = new RegExp('(?:' + process.argv[3] + '[^руб]*)(\\d{4,}) руб');
-
-
-        console.log(data.match(regexp)[1]);
-
-    });
-} else {
-    console.log('no target');
-}
-
-fs.readFile('Product_Casio1.csv', { encoding: 'utf8' }, function(err, data) {
-    csv.parse(data, { delimeter: '^' }, function(err, data) {
-        csv.stringify(data, function(err, data) {
-            process.stdout.write(data);
+    res.setEncoding('utf8');
+    
+    res
+        .on( 'data', function(chunk) {
+            body += chunk;
         })
-    });
+        .on('end', function() {
+            rstream
+                .pipe(csv.parse({ delimiter: '^', columns: true }))
+                .pipe(csv.transform(function(record){
+                    var regexp = new RegExp('(?:' + record.product_sku + '[^руб]*>)(\\d+) руб'),
+                        match = body.match(regexp);
+
+                    console.log(record.product_sku, match ? match[1] : 'nothing matched');
+
+                    record.source_product_price = match ? match[1] : '';
+                    record.source_product_in_stock = match ? 1 : '';
+
+                    return record;
+                }))
+
+               .pipe(csv.stringify({ delimiter: '^', header: true }))
+               .pipe(wstream);
+        });
+    
+}).on('error', function(e) {
+    console.log('Got error: ' + e.message);
 });
