@@ -1,34 +1,22 @@
 var csv = require('csv');
+var fs = require('fs');
+var rstream = fs.createReadStream(process.argv[2]);
+var wstream = fs.createWriteStream('_' + process.argv[2]);
 
-var generator = csv.generate({seed: 1, columns: 2, length: 20});
-var parser = csv.parse();
-var transformer = csv.transform(function(data){
-  return data.map(function(value){return value});
-});
-var stringifier = csv.stringify();
+rstream
+    .pipe(csv.parse({ delimiter: '^', columns: true }))
+    .pipe(csv.transform(function(record){
 
-var data;
+        record.bla = '%%';
 
-generator.on('readable', function(){
-  while(data = generator.read()){
-    parser.write(data);
-  }
-});
+        var b = Math.random() < 0.5;
 
-parser.on('readable', function(){
-  while(data = parser.read()){
-    transformer.write(data);
-  }
-});
+        console.log(b);
 
-transformer.on('readable', function(){
-  while(data = transformer.read()){
-    stringifier.write(data);
-  }
-});
+        record.ha = b ? 'undefined' : '';
 
-stringifier.on('readable', function(){
-  while(data = stringifier.read()){
-    process.stdout.write(data);
-  }
-});
+        return record;
+    }))
+
+   .pipe(csv.stringify({ delimiter: '^', header: true }))
+   .pipe(wstream);
