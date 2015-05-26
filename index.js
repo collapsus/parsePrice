@@ -26,7 +26,7 @@ http.get(process.argv[2], function(res) {
                     console.log(record.product_sku, match ? match[1] : 'nothing matched');
 
                     record.source_product_price = match ? match[1] : '';
-                    record.source_product_in_stock = match ? 1 : '';
+                    record.source_product_in_stock = +!!match;
 
                     return record;
                 }))
